@@ -64,7 +64,7 @@
         </v-list-item>
         <v-list-item @click.prevent="navHandle('poem')" id="poem">
           <v-list-item-action>
-            <v-icon>mdi-coin</v-icon>
+            <v-icon>menu_book</v-icon>
           </v-list-item-action>
           <v-list-item-content>
             <v-list-item-title>Poem Search</v-list-item-title>
