@@ -25,7 +25,7 @@ npm run test
 npm run lint
 ```
 
-## Electron
+### Electron
 ```
 npm run electron:build
 ```
