@@ -38,8 +38,8 @@
 </template>
 
 <script>
-import PostTemplate from "./PostTemplate";
-import NewPost from "./NewPost";
+// import PostTemplate from "./PostTemplate";
+// import NewPost from "./NewPost";
 import Topic1 from "./tabs/Topic1";
 import Topic2 from "./tabs/Topic2";
 import Topic3 from "./tabs/Topic3";
@@ -54,12 +54,12 @@ export default {
       items: ["topic 1", "topic 2", "topic 3", "topic 4"],
       text: "",
       snackbar: false,
-      tOut: 0
+      tOut: 10000
     };
   },
   components: {
-    NewPost,
-    PostTemplate,
+    // NewPost,
+    // PostTemplate,
     Topic1,
     Topic2,
     Topic3,
@@ -68,16 +68,15 @@ export default {
   mounted() {
     this.toggleSnackbar;
   },
-  computed: {
+  computed: {},
+  methods: {
     toggleSnackbar() {
       if (this.$store.state.user.username === null) {
         this.snackbar = true;
       } else {
         this.snackbar = false;
       }
-    }
-  },
-  methods: {
+    },
     handleTab(item) {
       let liveItem = item.replace(/\s+/g, "");
       this.$store.commit("setTopic", liveItem);

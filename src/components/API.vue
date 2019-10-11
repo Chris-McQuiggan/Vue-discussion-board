@@ -8,26 +8,12 @@
     <h1>Crypto Currencies</h1>
     <v-text-field v-model="search" label="Search" append-icon="search" clear-icon="true"></v-text-field>
 
-    <v-snackbar id="csvSaved" v-model="saved" top color="success" :timeout="5000">
-      {{this.savedText}}
-      <v-btn text @click="saved = false">
+    <v-snackbar id="csvSaved" v-model="alert" top :color="alertType" :timeout="alertTimeout">
+      {{this.alertText}}
+      <v-btn text @click="alert = false">
         <v-icon>mdi-close</v-icon>
       </v-btn>
     </v-snackbar>
-    <v-snackbar id="csvError" v-model="error" top :timeout="10000" color="error">
-      {{this.savedText}}
-      <v-btn text @click="error = false">
-        <v-icon>mdi-close</v-icon>
-      </v-btn>
-    </v-snackbar>
-    <!-- <v-lazy
-      v-model="isActive"
-      :options="{
-          threshold: .5
-        }"
-      min-height="200"
-      transition="fade-transition"
-    >-->
     <v-skeleton-loader
       v-if="loading"
       ref="skeleton"
@@ -105,7 +91,6 @@
     <v-btn v-if="!loading" @click="saveData2()">Export Selected: CSV</v-btn>
     <v-btn v-if="!loading" @click="openDialog()">Set Export Location</v-btn>
     <v-btn v-if="!loading" @click="exportToLocation()">Export to Location</v-btn>
-    <!-- </v-lazy> -->
   </div>
 </template>
 
@@ -124,9 +109,10 @@ export default {
       isActive: false,
       filtered: [],
       loading: true,
-      saved: false,
-      error: false,
-      savedText: "",
+      alert: false,
+      alertType: "",
+      alertText: "",
+      alertTimeout: null,
       search: "",
       headers: [
         {
@@ -181,6 +167,21 @@ export default {
     }, 12000000);
   },
   methods: {
+    alertSuccess() {
+      this.alertType = "success";
+      this.alert = true;
+      this.alertTimeout = 5000;
+    },
+    alertError() {
+      this.alertType = "error";
+      this.alert = true;
+      this.alertTimeout = 10000;
+    },
+    alertWarning() {
+      this.alertType = "warning";
+      this.alert = true;
+      this.alertTimeout = 5000;
+    },
     getData() {
       axios
         .get(
@@ -203,12 +204,12 @@ export default {
       dialog.showOpenDialog(null, options).then(res => {
         if (!res.canceled) {
           this.folderPath = res.filePaths[0];
-          this.saved = true;
-          this.savedText = "Export Location Saved";
+          this.alertSuccess();
+          this.alertText = "Export Location Saved";
           this.saveData2();
         } else {
-          this.error = true;
-          this.savedText = "Canceled";
+          this.alertWarning();
+          this.alertText = "Canceled";
         }
       });
     },
@@ -223,11 +224,11 @@ export default {
       dialog.showOpenDialog(null, options).then(res => {
         if (!res.canceled) {
           this.folderPath = res.filePaths[0];
-          this.saved = true;
-          this.savedText = "Export Location Saved";
+          this.alertSuccess();
+          this.alertText = "Export Location Saved";
         } else {
-          this.error = true;
-          this.savedText = "Canceled";
+          this.alertWarning();
+          this.alertText = "Canceled";
         }
       });
     },
@@ -248,12 +249,12 @@ export default {
           headers: true
         })
         .on("error", err => {
-          this.error = true;
-          this.savedText = "csv not created! " + err;
+          this.alertError();
+          this.alertText = "CSV Not Created! " + '"' + err + '"';
         })
         .on("finish", () => {
-          this.saved = true;
-          this.savedText = filename + " created successfully";
+          this.alertSuccess();
+          this.alertText = filename + " created successfully";
         });
     },
     saveData() {
@@ -307,14 +308,12 @@ export default {
       });
       save
         .then(() => {
-          this.error = false;
-          this.saved = true;
-          this.savedText = filename + " created successfully";
+          this.alertSuccess();
+          this.alertText = filename + " created successfully";
         })
-        .catch(() => {
-          this.saved = false;
-          this.error = true;
-          this.savedText = "csv not created!";
+        .catch(err => {
+          this.alertError();
+          this.alertText = "csv not created!" + err;
         });
     },
     dFormat() {
