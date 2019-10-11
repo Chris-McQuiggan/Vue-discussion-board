@@ -8,8 +8,18 @@
     <h1>Crypto Currencies</h1>
     <v-text-field v-model="search" label="Search" append-icon="search" clear-icon="true"></v-text-field>
 
-    <v-alert v-if="saved" dense text type="success" dismissible>{{this.savedText}}</v-alert>
-    <v-alert v-if="error" dense text type="error" dismissible>{{this.savedText}}</v-alert>
+    <v-snackbar id="csvSaved" v-model="saved" top color="success" :timeout="5000">
+      {{this.savedText}}
+      <v-btn text @click="saved = false">
+        <v-icon>mdi-close</v-icon>
+      </v-btn>
+    </v-snackbar>
+    <v-snackbar id="csvError" v-model="error" top :timeout="10000" color="error">
+      {{this.savedText}}
+      <v-btn text @click="error = false">
+        <v-icon>mdi-close</v-icon>
+      </v-btn>
+    </v-snackbar>
     <!-- <v-lazy
       v-model="isActive"
       :options="{
@@ -37,7 +47,7 @@
       :items-per-page="15"
       :headers="headers"
       :items="apiRes"
-      item-key="name"
+      item-key="rank"
       class="elevation-1"
       :loading="loading"
       loading-text="Loading... Please wait"
@@ -71,7 +81,6 @@
                     <v-col cols="4">
                       <v-text-field id="currency" v-model="item.currency" label="Currency" required></v-text-field>
                     </v-col>
-
                     <v-col cols="4">
                       <v-text-field
                         id="coinname"
@@ -93,7 +102,9 @@
         </td>
       </template>
     </v-data-table>
-    <v-btn v-if="!loading" @click="saveData()">Export Selected: CSV</v-btn>
+    <v-btn v-if="!loading" @click="saveData2()">Export Selected: CSV</v-btn>
+    <v-btn v-if="!loading" @click="openDialog()">Set Export Location</v-btn>
+    <v-btn v-if="!loading" @click="exportToLocation()">Export to Location</v-btn>
     <!-- </v-lazy> -->
   </div>
 </template>
@@ -102,6 +113,8 @@
 import axios from "axios";
 import fs from "fs";
 import os from "os";
+import fastcsv from "fast-csv";
+import path from "path";
 
 export default {
   name: "home-page",
@@ -127,15 +140,6 @@ export default {
         { text: "Currency", value: "currency" },
         { text: "Name", value: "name" },
         { text: "Price (GBP)", filterable: false, value: "price" }
-        // { text: "Supply", filterable: false, value: "circulating_supply" },
-        // { text: "Max Supply", filterable: false, value: "max_supply" },
-        // {
-        //   text: "Highest Price (GPB)",
-        //   filterable: false,
-        //   // width: "1%",
-        //   value: "high"
-        // },
-        // { text: "Date", filterable: false, value: "high_timestamp" }
       ],
       subheaders: [
         {
@@ -164,10 +168,13 @@ export default {
           value: "high_timestamp"
         }
       ],
-      apiRes: []
+      apiRes: [],
+      folderPath: ""
     };
   },
   mounted() {
+    const { app } = require("electron").remote;
+    this.folderPath = app.getPath("documents");
     this.getData();
     this.interval = setInterval(() => {
       this.getData();
@@ -183,6 +190,70 @@ export default {
         .then(res => {
           this.apiRes = res.data;
           this.loading = false;
+        });
+    },
+    exportToLocation() {
+      const { dialog } = require("electron").remote;
+      const options = {
+        title: "Set Defult Export Location",
+        defaultPath: this.folderPath,
+        buttonLabel: "Select",
+        properties: ["openDirectory"]
+      };
+      dialog.showOpenDialog(null, options).then(res => {
+        if (!res.canceled) {
+          this.folderPath = res.filePaths[0];
+          this.saved = true;
+          this.savedText = "Export Location Saved";
+          this.saveData2();
+        } else {
+          this.error = true;
+          this.savedText = "Canceled";
+        }
+      });
+    },
+    async openDialog() {
+      const { dialog } = require("electron").remote;
+      const options = {
+        title: "Set Defult Export Location",
+        defaultPath: this.folderPath,
+        buttonLabel: "Select",
+        properties: ["openDirectory"]
+      };
+      dialog.showOpenDialog(null, options).then(res => {
+        if (!res.canceled) {
+          this.folderPath = res.filePaths[0];
+          this.saved = true;
+          this.savedText = "Export Location Saved";
+        } else {
+          this.error = true;
+          this.savedText = "Canceled";
+        }
+      });
+    },
+    async saveData2() {
+      let filename = this.dFormat() + " crypto data.csv";
+      let data = [];
+      if (this.filtered.length !== 0) {
+        data = this.filtered;
+      } else {
+        data = this.apiRes;
+      }
+      // const ws = fs.createWriteStream(filename);
+      // fastcsv
+      // .write(this.apiRes, { headers: true })
+      // .pipe(ws)
+      fastcsv
+        .writeToPath(path.resolve(this.folderPath, filename), data, {
+          headers: true
+        })
+        .on("error", err => {
+          this.error = true;
+          this.savedText = "csv not created! " + err;
+        })
+        .on("finish", () => {
+          this.saved = true;
+          this.savedText = filename + " created successfully";
         });
     },
     saveData() {
@@ -268,7 +339,7 @@ export default {
 
       if (seconds < 10) seconds = "0" + seconds;
 
-      return cur_day + " " + hours + " " + minutes + " " + seconds;
+      return cur_day + " " + hours + "h" + minutes + "m" + seconds + "s";
     }
   }
 };
