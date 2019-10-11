@@ -127,7 +127,7 @@ export default {
       this.$store.commit(overlay);
     },
     navHandle(name) {
-      this.$router.push({ name: name });
+      this.$router.push({ name: name }).catch(() => {});
     },
     logout() {
       this.$store.commit("logout");

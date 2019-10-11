@@ -20,13 +20,13 @@
 
 <script>
 import navBar from "./components/Navigation/NavBar";
-import routes from "./routes";
+// import routes from "./routes";
 
 export default {
   name: "App",
   components: {
-    navBar,
-    routes
+    navBar
+    // routes
   },
   data() {
     return {};
