@@ -1,5 +1,11 @@
 <template>
   <div id="home-page">
+    <v-snackbar id="Alert" v-model="alert" top :color="alertType" :timeout="alertTimeout">
+      {{this.alertText}}
+      <v-btn text @click="alert = false">
+        <v-icon>mdi-close</v-icon>
+      </v-btn>
+    </v-snackbar>
     <v-row>
       <v-col align="center">
         <img alt="Vue logo" src="../assets/logo.png" style="height:100%" />
@@ -7,27 +13,91 @@
     </v-row>
     <h1>Poem Search</h1>
     <v-form @submit.prevent="computeSearch()">
-      <v-text-field v-model="query" label="Search" append-icon="search" clear-icon="true"></v-text-field>
+      <v-row>
+        <v-col cols="3">
+          <v-select
+            v-model="catSelect"
+            :items="categories"
+            :menu-props="{ maxHeight: '400' }"
+            label="Category"
+          ></v-select>
+        </v-col>
+        <v-col cols="6">
+          <v-text-field v-model="query" label="Search" clear-icon="true"></v-text-field>
+        </v-col>
+        <v-col cols="1">
+          <v-btn text icon left bottom type="submit">
+            <v-icon>search</v-icon>
+          </v-btn>
+        </v-col>
+      </v-row>
     </v-form>
 
     <v-data-table
       v-model="filtered"
+      :expanded.sync="expanded"
       :items-per-page="15"
       :headers="headers"
       :items="doc"
       item-key="title"
-      class="elevation-1"
-    ></v-data-table>
+      class="elevation-5"
+    >
+      <template v-slot:item.notes="{ item }">
+        <v-btn v-if="item.notes!==null" text icon @click="handleClick(item)">
+          <v-icon>mdi-dots-horizontal</v-icon>
+        </v-btn>
+      </template>
+      <template v-slot:item.title="{ item }">
+        <div @click="copyText2(item.title)">
+          <p>{{item.title}}</p>
+        </div>
+      </template>
+      <template v-slot:item.content="{ item }">
+        <div @click="copyText2(item.content)">
+          <p>{{item.content}}</p>
+        </div>
+      </template>
+      <template v-slot:item.poet="{ item }">
+        <div @click="copyText2(item.poet)">
+          <p>{{item.poet}}</p>
+        </div>
+      </template>
+      <template v-slot:item.url="{ item }">
+        <div @click="copyText2(item.url)">
+          <p>{{item.url}}</p>
+        </div>
+      </template>
+      <template v-slot:item.ip="{ item }">
+        <div @click="copyText2(item.ip)">
+          <p>{{item.ip}}</p>
+        </div>
+      </template>
+      <template v-slot:item.email="{ item }">
+        <div @click="copyText2(item.email)">
+          <p>{{item.email}}</p>
+        </div>
+      </template>
+      <template v-slot:expanded-item="{ item }">
+        <td :colspan="12">
+          <div @click="copyText2(item.notes)">
+            <p>{{item.notes}}</p>
+          </div>
+        </td>
+      </template>
+    </v-data-table>
   </div>
 </template>
 
 <script>
 import lunr from "lunr";
+import _ from "lodash";
 
 export default {
   name: "search",
   data() {
     return {
+      icon: "mdi-arrow-down-drop-circle-outline",
+      catSelect: "Any",
       expanded: [],
       isActive: false,
       filtered: [],
@@ -35,42 +105,50 @@ export default {
       saved: false,
       error: false,
       savedText: "",
+      categories: ["Any", "Title", "Content", "Poet", "URL", "IP", "Email"],
       headers: [
+        { text: "notes", filterable: false, sortable: false, value: "notes" },
         {
           text: "Title",
           filterable: true,
           sortable: true,
-          value: "title"
+          value: "title",
+          align: "start"
         },
         {
           text: "Content",
           filterable: true,
           sortable: true,
-          value: "content"
+          value: "content",
+          align: "start"
         },
         {
           text: "Poet",
           filterable: true,
           sortable: true,
-          value: "poet"
+          value: "poet",
+          align: "start"
         },
         {
           text: "URL",
           filterable: true,
           sortable: true,
-          value: "url"
+          value: "url",
+          align: "start"
         },
         {
           text: "IP",
           filterable: true,
           sortable: true,
-          value: "ip"
+          value: "ip",
+          align: "start"
         },
         {
           text: "Email",
           filterable: true,
           sortable: true,
-          value: "email"
+          value: "email",
+          align: "start"
         }
       ],
       poems: [
@@ -81,7 +159,8 @@ export default {
           url: "https://www.poemist.com/eugene-field/a-fickle-woman",
           poet: "Eugene Field",
           ip: "192.168.1.0",
-          email: "admin@mail.info"
+          email: "admin@mail.info",
+          notes: "something"
         },
         {
           title: "The Chaplet",
@@ -90,7 +169,8 @@ export default {
           url: "https://www.poemist.com/william-makepe-thackeray/the-chaplet",
           poet: "William Makepe Thackeray",
           ip: "235.53.1.0",
-          email: "Jerry@guru.com"
+          email: "Jerry@guru.com",
+          notes: null
         },
         {
           title: "Written by Himself",
@@ -99,7 +179,8 @@ export default {
           url: "https://www.poemist.com/gregory-pardlo/written-by-himself",
           poet: "Gregory Pardlo",
           ip: "23.432.53.0",
-          email: "Bob@gmail.com"
+          email: "Bob@gmail.com",
+          notes: null
         },
         {
           title: "Sonnet Xxviii: Weak Is The Sophistry",
@@ -109,7 +190,8 @@ export default {
             "https://www.poemist.com/mary-darby-robinson/sonnet-xxviii-weak-is-the-sophistry",
           poet: "Mary Darby Robinson",
           ip: "643.234.35.0",
-          email: "harry@guru.co.uk"
+          email: "harry@guru.co.uk",
+          notes: "something"
         },
         {
           title: "Memory and Hope",
@@ -118,7 +200,8 @@ export default {
           url: "https://www.poemist.com/alphonse-de-lamartine/memory-and-hope",
           poet: "Alphonse de Lamartine",
           ip: "255.255.255.0",
-          email: "thing@1.net"
+          email: "thing@1.net",
+          notes: null
         },
         {
           title: "To The Queen At Oxford",
@@ -127,7 +210,8 @@ export default {
           url: "https://www.poemist.com/henry-king/to-the-queen-at-oxford",
           poet: "Henry King",
           ip: "0.0.0.0",
-          email: "thing@2.com"
+          email: "thing@2.com",
+          notes: "something"
         },
         {
           title: "The Famous Victory Of Saarbrucken",
@@ -137,7 +221,8 @@ export default {
             "https://www.poemist.com/arthur-rimbaud/the-famous-victory-of-saarbrucken",
           poet: "Arthur Rimbaud",
           ip: "174.243.1.5",
-          email: "matt@live.chruch"
+          email: "matt@live.chruch",
+          notes: null
         },
         {
           title: "Hos Gud, f\u00f8r Verdens Grund blev lagt",
@@ -147,7 +232,8 @@ export default {
             "https://www.poemist.com/nicolaj-freder-grundtvig/hos-gud-for-verdens-grund-blev-lagt",
           poet: "Nicolaj Freder Grundtvig",
           ip: "192.100.1.0",
-          email: "mrT@here.london"
+          email: "mrT@here.london",
+          notes: null
         },
         {
           title: "Death And The Lady",
@@ -157,23 +243,29 @@ export default {
             "https://www.poemist.com/mary-elizabeth-coleridge/death-and-the-lady",
           poet: "Mary Elizabeth Coleridge",
           ip: "192.168.3.0",
-          email: "pinky@brain.co"
+          email: "pinky@brain.co",
+          notes: "something"
         },
         {
           title: "Christmas",
           content:
             "At Christmas time with snow on the ground\n And the outdoor lights glistening all around\n With lights twinkling from the Christmas tree\n Making a beautiful sight, for all to see.\n\n Trees with angels and tinsel balls too\n And popcorn stringers that's made by you\n Cherished ornaments that will never be forgot\n That over the years, the children have bought.\n\n Presents will soon be around the tree\n Making us guess what each will be\n The oh's and ah's the children will shout\n Hoping it's a gift they just couldn't live without.\n\n The lights will be lit on the tree and glow\n With the star on top letting us all know\n That Christmas is a time of love and sharing\n Of peace and good will with caring\n\n The turkey and trimmings will then soon appear\n Then we sit down together and bless all that are dear.\n Our grace giving thanks to God will be said\n With a hope that all God's children will also be fed.",
-          url: "https://www.poemist.com/vena-humphrey/christmas",
+          url: "https://www.poemist.com/vena-humphrey/christmas%20hi",
           poet: "Vena Humphrey",
           ip: "192.168.1.6",
-          email: "admin@guru.com"
+          email: "admin@guru.com",
+          notes: null
         }
       ],
       idx: null,
       query: "",
       results: [],
       documents: [],
-      doc: []
+      doc: [],
+      alert: false,
+      alertText: null,
+      alertType: null,
+      alertTimeout: 0
     };
   },
   mounted() {
@@ -183,13 +275,76 @@ export default {
   computed: {},
 
   methods: {
+    copyText(containerid) {
+      var range = document.createRange();
+      // console.log(range);
+      range.selectNode(document.getElementById(containerid));
+      // console.log(range);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+      // console.log(window);
+      // console.log(window.getSelection());
+      document.execCommand("copy");
+      window.getSelection().removeAllRanges();
+    },
+    copyText2(text) {
+      var textArea = document.createElement("textarea");
+      textArea.style.position = "fixed";
+      textArea.style.top = 0;
+      textArea.style.left = 0;
+      textArea.style.width = "2em";
+      textArea.style.height = "2em";
+      textArea.style.padding = 0;
+      textArea.style.border = "none";
+      textArea.style.outline = "none";
+      textArea.style.boxShadow = "none";
+      textArea.style.background = "transparent";
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+
+      try {
+        var successful = document.execCommand("copy");
+        var msg = successful ? "successful" : "unsuccessful";
+        this.alert = false;
+        this.alert = true;
+        if (msg === "successful") {
+          this.alertType = "cyan darken-2";
+          this.alertText = "Copied!";
+          this.alertTimeout = 1000;
+        } else {
+          this.alertType = "error";
+          this.alertText = "Failed to copy text";
+          this.alertTimeout = 10000;
+        }
+      } catch (err) {
+        this.alert = true;
+        this.alertType = "error";
+        this.alertText = "failed to copy text: " + err;
+        this.alertTimeout = 10000;
+      }
+
+      document.body.removeChild(textArea);
+    },
+
+    handleClick(item) {
+      // let index = this.expanded.findIndex(x => x.title === item.title);
+      let index = _.findIndex(this.expanded, item);
+      if (index === -1) {
+        this.expanded.push(item);
+      } else {
+        this.expanded.splice(index, 1);
+      }
+    },
     index() {
+      // lunr.tokenizer.separator = /\s+/; // white space only
       let documents = this.poems.reduce(function(memo, doc) {
         memo[doc.title] = doc;
         return memo;
       }, {});
       let poems = this.poems;
       let idx = lunr(function() {
+        this.tokenizer.separator = /[\s]+/;
         this.ref("title");
         this.field("title");
         this.field("content");
@@ -197,7 +352,7 @@ export default {
         this.field("url");
         this.field("ip");
         this.field("email");
-        this.metadataWhitelist = ["position"];
+        // this.metadataWhitelist = ["position"];
         poems.forEach(function(doc) {
           this.add(doc);
         }, this);
@@ -206,7 +361,74 @@ export default {
       this.documents = documents;
     },
     computeSearch() {
-      this.results = this.idx.search(this.query);
+      let search = "";
+      if (this.query.trim() !== "") {
+        search = " " + this.query;
+        search =
+          " " +
+          search
+            .toLowerCase()
+            .replace(/\\/g, "")
+            .replace(/:/g, "\\:")
+            .replace(/-/g, "\\-")
+            .replace(/,/g, "")
+            .replace(/;/g, "")
+            .replace(/!/g, "")
+            .replace(/'/g, "")
+            // .replace(/\./g, "")
+            .replace(/\?/g, "")
+            .replace(/"/g, "")
+            .replace(/ a /g, " ")
+            .replace(/ i /g, " ")
+            .replace(/ o /g, " ")
+            .replace(/ you /g, " ")
+            .replace(/ the /g, " ")
+            .replace(/ is /g, " ")
+            .replace(/ her /g, " ")
+            .replace(/ that /g, " ")
+            .replace(/ his /g, " ")
+            .replace(/ she /g, " ")
+            .replace(/ so /g, " ")
+            .replace(/ at /g, " ")
+            .replace(/ it /g, " ")
+            .replace(/ as /g, " ")
+            .replace(/ to /g, " ")
+            .replace(/ on /g, " ")
+            .replace(/ and /g, " ")
+            .replace(/ of /g, " ")
+            .replace(/ with /g, " ")
+            .replace(/ there /g, " ")
+            .replace(/ then /g, " ")
+            .replace(/ in /g, " ")
+            .replace(/ but /g, " ")
+            .replace(/ when /g, " ")
+            .replace(/ was /g, " ")
+            .replace(/ went /g, " ")
+            .replace(/ here /g, " ")
+            .replace(/ tis /g, " ")
+            .replace(/ siad /g, " ")
+            .replace(/ well /g, " ")
+            .replace(/ will /g, " ")
+            .replace(/ do /g, " ")
+            .replace(/ from /g, " ")
+            .replace(/ all /g, " ")
+            .replace(/ our /g, " ")
+            .replace(/ yet /g, " ")
+            .replace(/ said /g, " ")
+            .trim() +
+          " ";
+        if (this.catSelect !== "Any" && this.catSelect !== null) {
+          search = search
+            .replace(/[\s]+/g, "~1 +" + this.catSelect.toLowerCase() + ":")
+            .trim();
+          search = search.substr(3).slice(0, -2);
+        } else {
+          search = search.replace(/[\s]+/g, "~1 +").trim();
+          search = search.substr(3).slice(0, -2);
+        }
+      }
+      // console.log(search);
+      this.results = this.idx.search(search);
       this.doc = [];
       for (let i = 0; i < this.results.length; i++) {
         this.doc.push(this.documents[this.results[i].ref]);
